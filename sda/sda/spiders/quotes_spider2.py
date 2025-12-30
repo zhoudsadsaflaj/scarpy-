@@ -1,4 +1,4 @@
-#第一次
+
 from pathlib import Path
 from typing import Any
 
@@ -20,16 +20,25 @@ class QuotesSpider(scrapy.Spider):
     """这里效果和上面一致，这里虽然没有明着调用parse函数，实际上是默认回调的"""
     start_urls =[
             "https://quotes.toscrape.com/page/1/",
-            "https://quotes.toscrape.com/page/2/",
         ]
     def parse(self, response:Response):
-        page=response.url.split("/")[-2]
-        filename=f'quotes-{page}.html'
-        Path(filename).write_bytes(response.body)
-        self.log(f"save file{filename}")
+        for quote in response.css("div.quote"):
+            yield {
+                'text':quote.css("span.text::text").get(),
+                'author':quote.css("small.author").get(),
+                'tags':quote.css("div.tags a.tag::text").getall()
+            }
+
+            next_page=response.css("li.next a::attr(href)").get()
+
+            if next_page is not None:
+                """next_page=response.urljoin(next_page)
+                yield scrapy.Request(url=next_page,callback=self.parse)"""
+                yield response.follow(next_page,callback=self.parse)
 
 
 
 
 if __name__=="__main__":
-    cmdline.execute("scrapy crawl quotes".split())
+    #cmdline.execute("scrapy crawl quotes".split())
+    cmdline.execute("scrapy crawl quotes -O quotes.json".split())
